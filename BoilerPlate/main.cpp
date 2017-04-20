@@ -9,9 +9,13 @@
 
 // 
 #include "App.hpp"
+#include "utilities.hpp"
+#include "ship.h"
 
 const int WIDTH = 1136;
 const int HEIGHT = 640;
+
+using namespace std;
 
 int main(int argc, char* argv[])
 {

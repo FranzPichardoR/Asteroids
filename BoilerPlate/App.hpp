@@ -5,10 +5,19 @@
 // C++ STL
 #include <string>
 #include <list>
+#include <vector>
 
 // Asteroids
 #include "SDLEvent.hpp"
 #include "TimeManager.hpp"
+#include "ship.h"
+#include "Load.h"
+#include "Asteroide.h"
+#include "Draw.h"
+#include <random>
+#include <algorithm>
+#include "Bala.h"
+#include "EnemyShip.h"
 
 namespace Engine
 {
@@ -40,6 +49,9 @@ namespace Engine
 		bool Init							( );
 		void Update							( );
 		void Render							( );
+		int Index;
+		std::vector<ship> Ship;
+		std::vector<Asteroide*> Ast;
 	private:
 		/* =============================================================
 		 * PRIVATE FUNCTIONS
@@ -52,6 +64,9 @@ namespace Engine
 		void OnExit							( ) override;
 		void OnKeyDown						( SDL_KeyboardEvent keyBoardEvent ) override;
 		void OnKeyUp						( SDL_KeyboardEvent keyBoardEvent ) override;
+		void CheckColliding					( );
+		void CheckLive						( );
+		void CheckAst						( );
 
 
 		/* =============================================================
@@ -66,7 +81,15 @@ namespace Engine
 		SDL_GLContext						m_context;
 		GameState::State					m_state;
 		Engine::TimeManager*				m_timer;
-
+		std::vector<ship>				    ShipVidas;
+		int									CantVidas;
+		EnemyShip							enemy;
+		int									Score;
+		bool								Entro;
+		int									Time;
+		int									RespawnTime;
+		bool								EnterColliding;
+		int									CantAsteroides;
 	};
 }
 #endif /* GAME_HPP */

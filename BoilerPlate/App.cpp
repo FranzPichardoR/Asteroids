@@ -18,6 +18,12 @@ namespace Engine
 		, m_nUpdates(0)
 		, m_timer(new TimeManager)
 		, m_mainWindow(nullptr)
+		, CantVidas(3)
+		, Entro(false)
+		, Time(0)
+		, RespawnTime(0)
+		, Score(0)
+		, CantAsteroides(1)
 	{
 		m_state = GameState::UNINITIALIZED;
 		m_lastFrameTime = m_timer->GetElapsedTimeInSeconds();
@@ -73,6 +79,18 @@ namespace Engine
 		//
 		m_state = GameState::INIT_SUCCESSFUL;
 
+		Load config;
+		Ship = config.load();
+		ShipVidas = config.load();
+		Index = 0;
+		enemy = EnemyShip();
+
+		for (int i = 0; i < CantAsteroides; i++)
+		{
+			Asteroide* newAst = new Asteroide();
+			Ast.push_back(newAst);
+		}
+
 		return true;
 	}
 
@@ -80,6 +98,29 @@ namespace Engine
 	{		
 		switch (keyBoardEvent.keysym.scancode)
 		{
+		case SDL_SCANCODE_W:
+			Ship[Index].MoveUp();
+			break;
+		case SDL_SCANCODE_S:
+			Ship[Index].MoveDown();
+			break;
+		case SDL_SCANCODE_A:
+			Ship[Index].MoveLeft();
+			break;
+		case SDL_SCANCODE_D:
+			Ship[Index].MoveRight();
+			break;
+		case SDL_SCANCODE_SPACE:
+			Ship[Index].Disparar();
+			break;
+		case SDL_SCANCODE_P:
+			Index++;
+			if (Index > (Ship.size() - 1))
+			{
+				Index = 0;
+			}
+
+			break;
 		default:			
 			SDL_Log("%S was pressed.", keyBoardEvent.keysym.scancode);
 			break;
@@ -103,8 +144,37 @@ namespace Engine
 	{
 		double startTime = m_timer->GetElapsedTimeInSeconds();
 
-		// Update code goes here
-		//
+		//Update of the ship
+		Ship[Index].Update(DESIRED_FRAME_RATE);
+
+		//Update of the enemy ship
+		enemy.Update(DESIRED_FRAME_RATE, Ship[Index].Position);
+
+		//Update of the asteroids
+		for (int i = 0; i < Ast.size(); i++)
+		{
+			Ast.at(i)->Mover(DESIRED_FRAME_RATE);
+		}
+		
+		//Check if you have live or not
+		CheckLive();
+
+		//Check for asteroids yes or no
+		CheckAst();
+
+		//Check all collisions
+		if(EnterColliding != true)
+			CheckColliding();
+		else
+		{
+			RespawnTime++;
+
+			if (RespawnTime == 100)
+			{
+				EnterColliding = false;
+				RespawnTime = 0;
+			}
+		}
 
 		double endTime = m_timer->GetElapsedTimeInSeconds();
 		double nextTimeFrame = startTime + DESIRED_FRAME_TIME;
@@ -115,7 +185,7 @@ namespace Engine
 			endTime = m_timer->GetElapsedTimeInSeconds();
 		}
 
-		//double elapsedTime = endTime - startTime;        
+		double elapsedTime = endTime - startTime;        
 
 		m_lastFrameTime = m_timer->GetElapsedTimeInSeconds();
 
@@ -127,13 +197,21 @@ namespace Engine
 		glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		glBegin(GL_LINE_LOOP);
-		glVertex2f(50.0, 50.0);
-		glVertex2f(50.0, -50.0);
-		glVertex2f(-50.0, -50.0);
-		glVertex2f(-50.0, 50.0);
-		glEnd();
+		//Draw the ships
+		Ship[Index].Draw();
 
+		//Draw the lives of the ships
+		ShipVidas[Index].Vidas(CantVidas,Index);
+
+		//Draw the enemy ships
+		enemy.Draw();
+
+		//Draw the asteroids
+		for (int i = 0; i < Ast.size(); i++)
+		{
+			Ast.at(i)->DrawAst();
+		}
+		
 		SDL_GL_SwapWindow(m_mainWindow);
 	}
 
@@ -245,5 +323,164 @@ namespace Engine
 		// Cleanup SDL pointers
 		//
 		CleanupSDL();
+	}
+
+	void App::CheckAst()
+	{
+		if (Ast.size() == 0)
+		{
+			CantAsteroides += 3;
+			for (int i = 0; i < CantAsteroides; i++)
+			{
+				Asteroide* newAst = new Asteroide();
+				Ast.push_back(newAst);
+			}
+		}
+	}
+
+	void App::CheckLive()
+	{
+		if (CantVidas == 0)
+		{
+			cout << "GAME OVER!!!" << endl;
+			cout << "Su Score final es: " << Score << endl;
+			std::system("Pause");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	void App::CheckColliding()
+	{
+		bool bulletHit = false;
+
+		for (auto copy : Ast)
+		{
+			Asteroide* pAst = dynamic_cast<Asteroide*> (copy);
+			if (pAst)
+			{
+				if (Ship[Index].Colliding(*copy))
+				{
+					EnterColliding = true;
+					CantVidas--;
+					int size = pAst->getSize();
+
+					Ast.erase(remove(Ast.begin(), Ast.end(), copy), Ast.end());
+					delete copy;
+
+					if (size == 0)
+					{
+						for (int i = 0; i < 2; i++)
+						{
+							Vector2 PosAleatoria;
+							float x = static_cast<float> (-400 + (400 + 400) * (rand() / static_cast<float> (RAND_MAX)));
+							float y = static_cast<float> (-400 + (400 + 400) * (rand() / static_cast<float> (RAND_MAX)));
+							PosAleatoria = Vector2(x, y);
+
+							Asteroide* nEnemy = new Asteroide(PosAleatoria, 1);
+							Ast.push_back(nEnemy);
+						}
+					}
+					if (size == 1)
+					{
+						for (int i = 0; i < 2; i++)
+						{
+							Vector2 PosAleatoria;
+							float x = static_cast<float> (-300 + (300 + 300) * (rand() / static_cast<float> (RAND_MAX)));
+							float y = static_cast<float> (-300 + (300 + 300) * (rand() / static_cast<float> (RAND_MAX)));
+							PosAleatoria = Vector2(x, y);
+
+							Asteroide* nEnemy = new Asteroide(PosAleatoria, 2);
+							Ast.push_back(nEnemy);
+						}
+					}
+
+					Ship[Index].Reiniciar();
+
+					break;
+				}
+
+				for (int i = 0; i < Ship[Index].Balas.size(); i++)
+				{
+					if (Ship[Index].Balas[i]->Colliding(*pAst))
+					{
+						int size = pAst->getSize();
+
+						Ast.erase(remove(Ast.begin(), Ast.end(), copy), Ast.end());
+						delete copy;
+
+						Ship[Index].EliminarBala(Ship[Index].Balas[i]);
+
+						if (size == 0)
+
+						{
+							Score += 100;
+							for (int i = 0; i < 2; i++)
+							{
+								Vector2 PosAleatoria;
+								float x = static_cast<float> (-400 + (400 + 400) * (rand() / static_cast<float> (RAND_MAX)));
+								float y = static_cast<float> (-400 + (400 + 400) * (rand() / static_cast<float> (RAND_MAX)));
+								PosAleatoria = Vector2(x, y);
+
+								Asteroide* nEnemy = new Asteroide(PosAleatoria, 1);
+								Ast.push_back(nEnemy);
+							}
+						}
+						if (size == 1)
+						{
+							Score += 200;
+							for (int i = 0; i < 2; i++)
+							{
+								Vector2 PosAleatoria;
+								float x = static_cast<float> (-300 + (300 + 300) * (rand() / static_cast<float> (RAND_MAX)));
+								float y = static_cast<float> (-300 + (300 + 300) * (rand() / static_cast<float> (RAND_MAX)));
+								PosAleatoria = Vector2(x, y);
+
+								Asteroide* nEnemy = new Asteroide(PosAleatoria, 2);
+								Ast.push_back(nEnemy);
+							}
+						}
+						if (size == 2)
+							Score += 300;
+
+						bulletHit = true;
+					}
+				}
+				if (bulletHit == true)
+					break;
+
+				for (int x = 0; x < enemy.Balas.size(); x++)
+				{
+					if (enemy.Balas[x]->Colliding(Ship[Index]))
+					{
+						EnterColliding = true;
+						CantVidas--;
+						Ship[Index].Reiniciar();
+						enemy.EliminarBala(enemy.Balas[x]);
+						break;
+					}
+				}
+
+				for (int x = 0; x < Ship[Index].Balas.size(); x++)
+				{
+					if (Ship[Index].Balas[x]->Colliding(enemy))
+					{
+						Score += 500;
+						enemy.~EnemyShip();
+						Ship[Index].EliminarBala(Ship[Index].Balas[x]);
+						Entro = true;
+					}
+				}
+
+				if (Entro == true)
+				{
+					if (Time == 1000)
+					{
+						enemy = EnemyShip();
+					}
+					Time++;
+				}
+			}
+
+		}
 	}
 }
